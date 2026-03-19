@@ -1,0 +1,32 @@
+name: Meeting Room Check
+
+on:
+  schedule:
+    # 21:45 UTC (Sun-Thu) = 8:45am AEDT (Mon-Fri)
+    # During AEST (Apr-Oct) this fires at 7:45am instead — still before work
+    - cron: "45 21 * * 0-4"
+  workflow_dispatch: # allows manual trigger for testing
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Check meetings and notify
+        env:
+          GOOGLE_SA_CREDENTIALS_B64: ${{ secrets.GOOGLE_SA_CREDENTIALS_B64 }}
+          CALENDAR_ID: ${{ vars.CALENDAR_ID }}
+          MEETING_EMAIL: ${{ vars.MEETING_EMAIL }}
+          COMPANY_DOMAIN: ${{ vars.COMPANY_DOMAIN }}
+          NOTIFY_EMAIL: ${{ vars.NOTIFY_EMAIL }}
+          DELEGATE_EMAIL: ${{ vars.DELEGATE_EMAIL }}
+          TIMEZONE: ${{ vars.TIMEZONE }}
+        run: python check_meetings.py

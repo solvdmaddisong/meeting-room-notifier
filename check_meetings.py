@@ -85,38 +85,50 @@ if not events:
 # ---------------------------------------------------------------------------
 today_str = now.strftime("%A %-d %B %Y")  # e.g. "Friday 20 March 2026"
 
-lines = [f"Meeting room bookings today {today_str}\n"]
-
+# Filter to only meetings with external attendees
+external_events = []
 for event in events:
-    summary = event.get("summary", "(No title)")
+    attendees = event.get("attendees", [])
+    has_external = any(
+        not a["email"].endswith(f"@{COMPANY_DOMAIN}")
+        and not a["email"].endswith("@resource.calendar.google.com")
+        for a in attendees
+    )
+    if has_external:
+        external_events.append(event)
 
+if not external_events:
+    print("No external meetings today.")
+    raise SystemExit(0)
+
+# Build HTML email
+html_lines = [f"<p>Meeting room bookings today {today_str}</p>"]
+
+for event in external_events:
+    summary = event.get("summary", "(No title)")
     start_dt = datetime.fromisoformat(event["start"]["dateTime"])
     end_dt = datetime.fromisoformat(event["end"]["dateTime"])
     start_time = start_dt.strftime("%-I:%M%p").lower()
     end_time = end_dt.strftime("%-I:%M%p").lower()
+    html_lines.append(f"<p><b>{start_time} - {end_time}</b> | {summary}</p><br>")
 
-    attendees = event.get("attendees", [])
-    external = [
-        a.get("displayName") or a["email"]
-        for a in attendees
-        if not a["email"].endswith(f"@{COMPANY_DOMAIN}")
-        and not a["email"].endswith("@resource.calendar.google.com")
-    ]
+html_body = "\n".join(html_lines)
 
-    line = f"  {start_time} - {end_time} | {summary}"
-    if external:
-        line += f"\n    External: {', '.join(external)}"
-    lines.append(line)
-
-body = "\n".join(lines)
-print(body)
+# Plain text for logging
+for event in external_events:
+    summary = event.get("summary", "(No title)")
+    start_dt = datetime.fromisoformat(event["start"]["dateTime"])
+    end_dt = datetime.fromisoformat(event["end"]["dateTime"])
+    start_time = start_dt.strftime("%-I:%M%p").lower()
+    end_time = end_dt.strftime("%-I:%M%p").lower()
+    print(f"  {start_time} - {end_time} | {summary}")
 
 # ---------------------------------------------------------------------------
 # Send email via Gmail API
 # ---------------------------------------------------------------------------
 gmail_service = build("gmail", "v1", credentials=delegated)
 
-message = MIMEText(body)
+message = MIMEText(html_body, "html")
 message["to"] = NOTIFY_EMAIL
 message["subject"] = f"Meeting room bookings today {today_str}"
 raw = base64.urlsafe_b64encode(message.as_bytes()).decode()

@@ -3,6 +3,7 @@ import json
 import base64
 from datetime import datetime
 from email.mime.text import MIMEText
+from email.utils import formataddr
 
 import pytz
 from google.oauth2 import service_account
@@ -129,6 +130,7 @@ for event in external_events:
 gmail_service = build("gmail", "v1", credentials=delegated)
 
 message = MIMEText(html_body, "html")
+message["from"] = formataddr(("Meeting Room Bookings", DELEGATE_EMAIL))
 message["to"] = NOTIFY_EMAIL
 message["subject"] = f"Meeting room bookings today {today_str}"
 raw = base64.urlsafe_b64encode(message.as_bytes()).decode()

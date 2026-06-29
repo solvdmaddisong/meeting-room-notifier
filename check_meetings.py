@@ -41,10 +41,9 @@ delegated = credentials.with_subject(DELEGATE_EMAIL)
 # ---------------------------------------------------------------------------
 tz = pytz.timezone(TIMEZONE)
 now = datetime.now(tz)
-# TIME GUARD DISABLED FOR TESTING — re-enable before going live
-# if now.hour != 16:
-#     print(f"Outside expected time window (Sydney hour: {now.hour:02d}). Exiting.")
-#     raise SystemExit(0)
+if now.hour != 16:
+    print(f"Outside expected time window (Sydney hour: {now.hour:02d}). Exiting.")
+    raise SystemExit(0)
 
 cal_service = build("calendar", "v3", credentials=delegated)
 
@@ -171,6 +170,17 @@ def get_organiser(event):
     return org.get("displayName") or org.get("email", "Unknown")
 
 
+def get_attendees(event):
+    names = []
+    for a in event.get("attendees", []):
+        email = a.get("email", "")
+        if email.endswith("@resource.calendar.google.com"):
+            continue
+        name = a.get("displayName") or email
+        names.append(name)
+    return names
+
+
 INTERNAL_BADGE = (
     '<span style="font-size:11px;font-weight:500;padding:2px 7px;border-radius:4px;'
     'background:#F1EFE8;color:#5F5E5A;letter-spacing:0.03em;">INTERNAL</span>'
@@ -179,28 +189,36 @@ CLIENT_BADGE = (
     '<span style="font-size:11px;font-weight:500;padding:2px 7px;border-radius:4px;'
     'background:#E6F1FB;color:#185FA5;letter-spacing:0.03em;">CLIENT</span>'
 )
+BOOKED_FIRST_BADGE = (
+    '<span style="font-size:11px;font-weight:500;padding:2px 7px;border-radius:4px;'
+    'background:#FDECEA;color:#A32D2D;letter-spacing:0.03em;">BOOKED FIRST</span>'
+)
 
 
 def event_row_html(event, booked_first):
     s, e = parse_times(event)
     badge = INTERNAL_BADGE if get_meeting_type(event) == "internal" else CLIENT_BADGE
     organiser = get_organiser(event)
-    first_label = (
-        ' &nbsp;<span style="color:#A32D2D;font-weight:500;">(booked first)</span>'
-        if booked_first
+    attendees = get_attendees(event)
+    first_badge = f"&nbsp;{BOOKED_FIRST_BADGE}" if booked_first else ""
+    title = event.get("summary", "(No title)")
+    attendees_html = (
+        f'<div style="padding-left:136px;font-size:12px;color:#666666;margin-top:1px;">'
+        f"Attendees: {', '.join(attendees)}</div>"
+        if attendees
         else ""
     )
-    title = event.get("summary", "(No title)")
     return (
         f'<div style="margin:0 0 10px;">'
         f'<div style="display:flex;align-items:center;gap:8px;margin:0 0 2px;flex-wrap:wrap;">'
         f'<span style="font-size:13px;font-weight:500;color:#666666;min-width:128px;flex-shrink:0;">'
         f"{fmt_time(s)} – {fmt_time(e)}</span>"
         f'<span style="font-size:14px;color:#111111;font-weight:500;">{title}</span>'
-        f"&nbsp;{badge}"
+        f"&nbsp;{badge}{first_badge}"
         f"</div>"
         f'<div style="padding-left:136px;font-size:12px;color:#666666;">'
-        f"Organiser: {organiser}{first_label}</div>"
+        f"Organiser: {organiser}</div>"
+        f"{attendees_html}"
         f"</div>"
     )
 
@@ -212,7 +230,7 @@ for idx, (ev1, ev2) in enumerate(overlapping_pairs, 1):
     card = (
         f'<div style="border:0.5px solid #dddddd;border-left:3px solid #E24B4A;'
         f'border-radius:0 8px 8px 0;padding:14px 16px;margin:0 0 12px;">'
-        f'<p style="margin:0 0 10px;font-size:12px;font-weight:500;color:#A32D2D;'
+        f'<p style="margin:0 0 10px;font-size:12px;font-weight:700;color:#A32D2D;'
         f'letter-spacing:0.04em;">CONFLICT {idx} OF {total}</p>'
         f"{event_row_html(ev1, ev1_first)}"
         f'<p style="font-size:12px;color:#888888;margin:0 0 10px;">overlaps with</p>'

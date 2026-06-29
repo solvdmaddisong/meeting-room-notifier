@@ -41,7 +41,8 @@ delegated = credentials.with_subject(DELEGATE_EMAIL)
 # ---------------------------------------------------------------------------
 tz = pytz.timezone(TIMEZONE)
 now = datetime.now(tz)
-if now.hour != 16:
+is_manual = os.environ.get("GITHUB_EVENT_NAME") == "workflow_dispatch"
+if not is_manual and now.hour != 16:
     print(f"Outside expected time window (Sydney hour: {now.hour:02d}). Exiting.")
     raise SystemExit(0)
 

@@ -41,9 +41,10 @@ delegated = credentials.with_subject(DELEGATE_EMAIL)
 # ---------------------------------------------------------------------------
 tz = pytz.timezone(TIMEZONE)
 now = datetime.now(tz)
-if now.hour != 16:
-    print(f"Outside expected time window (Sydney hour: {now.hour:02d}). Exiting.")
-    raise SystemExit(0)
+# TIME GUARD DISABLED FOR TESTING — re-enable before going live
+# if now.hour != 16:
+#     print(f"Outside expected time window (Sydney hour: {now.hour:02d}). Exiting.")
+#     raise SystemExit(0)
 
 cal_service = build("calendar", "v3", credentials=delegated)
 

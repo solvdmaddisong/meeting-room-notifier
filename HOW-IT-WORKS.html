@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  body { font-family: Arial, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; line-height: 1.6; color: #333; }
+  h1 { font-size: 24px; }
+  h2 { font-size: 18px; margin-top: 30px; }
+  h3 { font-size: 15px; }
+  table { border-collapse: collapse; width: 100%; margin: 10px 0; }
+  th, td { border: 1px solid #ccc; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 3px solid #ccc; margin: 10px 0; padding: 10px 20px; background: #f9f9f9; }
+  hr { border: none; border-top: 1px solid #ddd; margin: 30px 0; }
+  ul { padding-left: 20px; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 14px; }
+  .conflict-card { border: 0.5px solid #ddd; border-left: 3px solid #E24B4A; border-radius: 0 8px 8px 0; padding: 14px 16px; margin: 12px 0; }
+  .conflict-label { font-size: 12px; font-weight: bold; color: #A32D2D; letter-spacing: 0.04em; margin: 0 0 10px; }
+  .meeting-title { font-size: 14px; font-weight: bold; }
+  .meeting-time { font-size: 13px; color: #666; }
+  .organiser { font-size: 12px; color: #666; margin-top: 2px; }
+  .overlap-label { font-size: 12px; color: #888; margin: 8px 0; }
+  .badge { font-size: 11px; font-weight: bold; padding: 2px 7px; border-radius: 4px; margin-left: 6px; }
+  .badge-internal { background: #F1EFE8; color: #5F5E5A; }
+  .badge-client { background: #E6F1FB; color: #185FA5; }
+  .booked-first { color: #A32D2D; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<h1>Meeting Room Conflict Checker</h1>
+
+<h2>What does it do?</h2>
+<p>Every weekday afternoon at 4:30pm, this automation checks the SOLVD meeting room calendar for the <strong>next business day</strong>. If any meetings overlap (two bookings at the same time), it sends an email listing each conflicting pair.</p>
+<p>If there are no conflicts, no email is sent.</p>
+
+<hr>
+
+<h2>What does the email look like?</h2>
+<p><strong>From:</strong> Meeting Room Bookings<br>
+<strong>Subject:</strong> Meeting room booking conflicts Thursday 26 June 2026</p>
+
+<p>The following meetings conflict in the meeting room on Thursday 26 June 2026:</p>
+
+<div class="conflict-card">
+  <p class="conflict-label">CONFLICT 1 OF 2</p>
+  <p class="meeting-time">9:00am – 10:00am &nbsp;<span class="meeting-title">Team Sync</span><span class="badge badge-internal">INTERNAL</span></p>
+  <p class="organiser">Organiser: Sarah Chen &nbsp;<span class="booked-first">(booked first)</span></p>
+  <p class="overlap-label">overlaps with</p>
+  <p class="meeting-time">9:30am – 11:00am &nbsp;<span class="meeting-title">Client Call — Acme Corp</span><span class="badge badge-client">CLIENT</span></p>
+  <p class="organiser">Organiser: James Liu</p>
+</div>
+
+<p style="font-size:13px;color:#666;">Please resolve these conflicts before the day starts.</p>
+
+<p>Each conflict card shows:</p>
+<ul>
+  <li>Both meetings with their times, title, and whether they're <strong>Internal</strong> (all solvdagency.com.au attendees) or <strong>Client</strong> (external attendees present)</li>
+  <li>The <strong>Organiser</strong> of each meeting</li>
+  <li>Which meeting was <strong>(booked first)</strong> based on when it was created in the calendar</li>
+</ul>
+
+<hr>
+
+<h2>How does it work?</h2>
+<p>There are three parts:</p>
+
+<h3>1. The script (<code>check_meetings.py</code>)</h3>
+<p>A Python script that does the following:</p>
+<ul>
+  <li>Logs into Google using a service account (like a robot Google account)</li>
+  <li>Checks what the next business day is, skipping weekends and Australian public holidays</li>
+  <li>Pulls that day's events from the meeting room calendar</li>
+  <li>Checks every pair of meetings to see if any overlap in time</li>
+  <li>If it finds conflicts, it sends an email with the details</li>
+</ul>
+
+<h3>2. The schedule (GitHub Actions)</h3>
+<p>The script doesn't run on anyone's computer. It runs on GitHub's servers (free) using a feature called GitHub Actions. Two cron entries cover daylight saving time — one for AEDT (October–April), one for AEST (April–October). Only the one that lands in the 4pm hour runs; the other exits immediately.</p>
+
+<h3>3. The Google service account</h3>
+<p>A service account is like a robot user in Google. It has permission to:</p>
+<ul>
+  <li><strong>Read</strong> the meeting room calendar</li>
+  <li><strong>Read</strong> the Australian public holidays calendar</li>
+  <li><strong>Send emails</strong> on behalf of maddisong@solvdagency.com.au</li>
+</ul>
+<p>It can't do anything else — it only has those permissions.</p>
+
+<hr>
+
+<h2>Where does everything live?</h2>
+<table>
+  <tr><th>What</th><th>Where</th></tr>
+  <tr><td>The script</td><td>GitHub repo: <code>solvdmaddisong/meeting-room-notifier</code> &gt; <code>check_meetings.py</code></td></tr>
+  <tr><td>The schedule</td><td>GitHub repo: <code>.github/workflows/daily_check.yml</code></td></tr>
+  <tr><td>The service account credentials</td><td>GitHub repo: Settings &gt; Secrets &gt; <code>GOOGLE_SA_CREDENTIALS_B64</code></td></tr>
+  <tr><td>The configuration (calendar ID, email, etc.)</td><td>GitHub repo: Settings &gt; Secrets and variables &gt; Actions &gt; Variables tab</td></tr>
+  <tr><td>The Google Cloud project</td><td>console.cloud.google.com &gt; project <code>meeting-room-notifier</code></td></tr>
+  <tr><td>The delegation permissions</td><td>admin.google.com &gt; Security &gt; API controls &gt; Domain Wide Delegation</td></tr>
+</table>
+
+<hr>
+
+<h2>Which calendar does it check?</h2>
+<p>It checks <strong>SOLVD-1-Meeting Room (20)</strong> — the large meeting room.</p>
+<p>It picks up meetings booked in two ways:</p>
+<ol>
+  <li>Someone selected the room using the "Rooms" feature in Google Calendar</li>
+  <li>Someone added <code>meeting@solvdagency.com.au</code> as an attendee</li>
+</ol>
+
+<hr>
+
+<h2>How does it detect overlaps?</h2>
+<p>It compares every pair of meetings. Two meetings overlap when one starts before the other ends. Back-to-back meetings (one ends at 2pm, the next starts at 2pm) are <strong>not</strong> flagged as a conflict.</p>
+
+<hr>
+
+<h2>How does it know which meeting was booked first?</h2>
+<p>Each Google Calendar event stores the timestamp when it was created. The script compares these timestamps and marks the earlier one as "(booked first)".</p>
+
+<hr>
+
+<h2>How does it know if a meeting is Internal or Client?</h2>
+<p>It looks at the attendee list:</p>
+<ul>
+  <li><strong>Internal</strong> — every attendee has a <code>@solvdagency.com.au</code> email</li>
+  <li><strong>Client</strong> — at least one attendee has an email from a different domain</li>
+</ul>
+
+<hr>
+
+<h2>What if I need to change something?</h2>
+<table>
+  <tr><th>I want to…</th><th>Do this</th></tr>
+  <tr><td>Change who gets the email</td><td>Update the <code>NOTIFY_EMAIL</code> variable in GitHub repo Settings &gt; Variables</td></tr>
+  <tr><td>Change the time it runs</td><td>Edit <code>.github/workflows/daily_check.yml</code> and update both cron lines</td></tr>
+  <tr><td>Stop it temporarily</td><td>Go to GitHub repo &gt; Actions &gt; Meeting Room Check &gt; click the "..." menu &gt; Disable workflow</td></tr>
+  <tr><td>Check if it ran today</td><td>Go to GitHub repo &gt; Actions tab — you'll see a list of all runs with green (success) or red (error)</td></tr>
+  <tr><td>Run it manually right now</td><td>Go to GitHub repo &gt; Actions &gt; Meeting Room Check &gt; Run workflow</td></tr>
+</table>
+
+<hr>
+
+<h2>Timing note</h2>
+<p>Two cron entries handle daylight saving automatically:</p>
+<ul>
+  <li><strong>05:30 UTC</strong> fires at 4:30pm AEDT (October–April, UTC+11)</li>
+  <li><strong>06:30 UTC</strong> fires at 4:30pm AEST (April–October, UTC+10)</li>
+</ul>
+<p>The script checks the current Sydney hour and exits immediately if it's not the 4pm hour, so only the correct cron does anything.</p>
+
+<hr>
+
+<h2>Cost</h2>
+<p>This is completely free:</p>
+<ul>
+  <li><strong>Google Cloud</strong> — free tier (no billing needed for this usage)</li>
+  <li><strong>GitHub Actions</strong> — free tier gives 2,000 minutes/month. This script takes about 10 seconds per run. Two cron entries fire per weekday, but the off-season one exits in under a second — total usage is roughly 5 minutes per month</li>
+</ul>
+
+</body>
+</html>

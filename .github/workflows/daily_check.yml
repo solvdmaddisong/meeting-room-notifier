@@ -2,9 +2,10 @@ name: Meeting Room Check
 
 on:
   schedule:
-    # 21:45 UTC (Sun-Thu) = 8:45am AEDT (Mon-Fri)
-    # During AEST (Apr-Oct) this fires at 7:45am instead — still before work
-    - cron: "45 21 * * 0-4"
+    # 4:30pm AEDT (Oct–Apr, UTC+11) = 05:30 UTC
+    - cron: "30 5 * * 1-5"
+    # 4:30pm AEST (Apr–Oct, UTC+10) = 06:30 UTC
+    - cron: "30 6 * * 1-5"
   workflow_dispatch: # allows manual trigger for testing
 
 jobs:

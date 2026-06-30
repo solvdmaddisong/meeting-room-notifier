@@ -124,6 +124,12 @@ except Exception:
 # Exclude all-day events — they don't represent room time slots
 events = [e for e in events if "dateTime" in e.get("start", {})]
 
+# Exclude events self-organised by the room resource (orphaned/test bookings with no human organiser)
+events = [
+    e for e in events
+    if not e.get("organizer", {}).get("email", "").endswith("@resource.calendar.google.com")
+]
+
 if not events:
     print(f"No meeting room bookings for {next_day_str}.")
     raise SystemExit(0)

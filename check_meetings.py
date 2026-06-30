@@ -203,22 +203,22 @@ def event_row_html(event, booked_first):
     attendees = get_attendees(event)
     first_badge = f"&nbsp;{BOOKED_FIRST_BADGE}" if booked_first else ""
     title = event.get("summary", "(No title)")
+    attendees_lines = "".join(
+        f'<div style="font-size:11px;color:#888888;">{a}</div>' for a in attendees
+    )
     attendees_html = (
-        f'<div style="padding-left:136px;font-size:12px;color:#666666;margin-top:1px;">'
-        f"Attendees: {', '.join(attendees)}</div>"
+        f'<div style="font-size:11px;color:#888888;margin-top:2px;">Attendees:</div>'
+        f"{attendees_lines}"
         if attendees
         else ""
     )
     return (
-        f'<div style="margin:0 0 10px;">'
-        f'<div style="display:flex;align-items:center;gap:8px;margin:0 0 2px;flex-wrap:wrap;">'
-        f'<span style="font-size:13px;font-weight:500;color:#666666;min-width:128px;flex-shrink:0;">'
-        f"{fmt_time(s)} – {fmt_time(e)}</span>"
-        f'<span style="font-size:14px;color:#111111;font-weight:500;">{title}</span>'
-        f"&nbsp;{badge}{first_badge}"
-        f"</div>"
-        f'<div style="padding-left:136px;font-size:12px;color:#666666;">'
-        f"Organiser: {organiser}</div>"
+        f'<div style="margin:0 0 12px;">'
+        f'<div style="font-size:12px;font-weight:600;color:#666666;margin:0 0 2px;">'
+        f"{fmt_time(s)} – {fmt_time(e)}</div>"
+        f'<div style="font-size:14px;color:#111111;font-weight:500;margin:0 0 5px;">'
+        f"{title}&nbsp;{badge}{first_badge}</div>"
+        f'<div style="font-size:11px;color:#888888;">Organiser: {organiser}</div>'
         f"{attendees_html}"
         f"</div>"
     )
@@ -229,12 +229,13 @@ cards_html = []
 for idx, (ev1, ev2) in enumerate(overlapping_pairs, 1):
     ev1_first = ev1.get("created", "") <= ev2.get("created", "")
     card = (
-        f'<div style="border:0.5px solid #dddddd;border-left:3px solid #E24B4A;'
+        f'<div style="background:#fafafa;border:1px solid #e5e5e5;border-left:3px solid #E24B4A;'
         f'border-radius:0 8px 8px 0;padding:14px 16px;margin:0 0 12px;">'
         f'<p style="margin:0 0 10px;font-size:12px;font-weight:700;color:#A32D2D;'
         f'letter-spacing:0.04em;">CONFLICT {idx} OF {total}</p>'
         f"{event_row_html(ev1, ev1_first)}"
-        f'<p style="font-size:12px;color:#888888;margin:0 0 10px;">overlaps with</p>'
+        f'<p style="font-size:11px;font-weight:600;color:#E24B4A;letter-spacing:0.04em;'
+        f'text-transform:uppercase;margin:0 0 10px;">↕ overlaps with</p>'
         f"{event_row_html(ev2, not ev1_first)}"
         f"</div>"
     )

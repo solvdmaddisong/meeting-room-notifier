@@ -124,11 +124,24 @@ except Exception:
 # Exclude all-day events — they don't represent room time slots
 events = [e for e in events if "dateTime" in e.get("start", {})]
 
-# Exclude events self-organised by the room resource (orphaned/test bookings with no human organiser)
-events = [
-    e for e in events
-    if not e.get("organizer", {}).get("email", "").endswith("@resource.calendar.google.com")
-]
+
+def room_has_accepted(event):
+    """Return True if a resource-calendar attendee has accepted, or if there are
+    no resource attendees at all (e.g. booked purely via the meeting@ email)."""
+    resource_attendees = [
+        a for a in event.get("attendees", [])
+        if a.get("email", "").endswith("@resource.calendar.google.com")
+        or a.get("email", "") == MEETING_EMAIL
+    ]
+    if not resource_attendees:
+        return True  # no resource attendee entry — treat as confirmed
+    return any(a.get("responseStatus") == "accepted" for a in resource_attendees)
+
+
+# Exclude events where the room resource hasn't accepted — these are orphaned
+# bookings where the organiser deleted the event without cancelling it, leaving
+# a stale copy on the room calendar that was never accepted or was later declined.
+events = [e for e in events if room_has_accepted(e)]
 
 if not events:
     print(f"No meeting room bookings for {next_day_str}.")

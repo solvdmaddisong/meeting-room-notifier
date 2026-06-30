@@ -98,7 +98,7 @@ events_result = cal_service.events().list(
     singleEvents=True,
     orderBy="startTime",
 ).execute()
-events = events_result.get("items", [])
+events = [e for e in events_result.get("items", []) if e.get("status") != "cancelled"]
 
 # Also check the meeting@ calendar to catch bookings added by email address
 try:
@@ -111,6 +111,8 @@ try:
     ).execute()
     existing_ids = {e["id"] for e in events}
     for evt in meeting_result.get("items", []):
+        if evt.get("status") == "cancelled":
+            continue
         if evt["id"] not in existing_ids:
             events.append(evt)
     events.sort(

@@ -141,6 +141,27 @@ def room_has_accepted(event):
 # Exclude events where the room resource hasn't accepted — these are orphaned
 # bookings where the organiser deleted the event without cancelling it, leaving
 # a stale copy on the room calendar that was never accepted or was later declined.
+# DEBUG: print raw API data for every event before filtering so we can inspect
+# ghost events. Remove once the root cause is identified.
+if is_manual:
+    print("\n=== DEBUG: all events before room_has_accepted filter ===")
+    for e in events:
+        print(json.dumps({
+            "id": e.get("id"),
+            "summary": e.get("summary"),
+            "status": e.get("status"),
+            "organizer": e.get("organizer"),
+            "created": e.get("created"),
+            "updated": e.get("updated"),
+            "start": e.get("start"),
+            "end": e.get("end"),
+            "attendees": [
+                {"email": a.get("email"), "responseStatus": a.get("responseStatus"), "self": a.get("self")}
+                for a in e.get("attendees", [])
+            ],
+        }, indent=2))
+    print("=== END DEBUG ===\n")
+
 events = [e for e in events if room_has_accepted(e)]
 
 if not events:

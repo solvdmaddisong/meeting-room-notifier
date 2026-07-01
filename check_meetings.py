@@ -100,77 +100,22 @@ events_result = cal_service.events().list(
 ).execute()
 events = [e for e in events_result.get("items", []) if e.get("status") != "cancelled"]
 
-# Also check the meeting@ calendar to catch bookings added by email address
-try:
-    meeting_result = cal_service.events().list(
-        calendarId=MEETING_EMAIL,
-        timeMin=start_of_day,
-        timeMax=end_of_day,
-        singleEvents=True,
-        orderBy="startTime",
-    ).execute()
-    existing_ids = {e["id"] for e in events}
-    for evt in meeting_result.get("items", []):
-        if evt.get("status") == "cancelled":
-            continue
-        if evt["id"] in existing_ids:
-            continue
-        # Only include events from the meeting@ calendar if the room resource
-        # has explicitly accepted — this filters ghost invites (old/deleted events
-        # still sitting in the meeting@ inbox with no confirmed room booking).
-        resource_accepted = any(
-            a.get("email", "").endswith("@resource.calendar.google.com")
-            and a.get("responseStatus") == "accepted"
-            for a in evt.get("attendees", [])
-        )
-        if resource_accepted:
-            events.append(evt)
-    events.sort(
-        key=lambda e: e["start"].get("dateTime", e["start"].get("date", ""))
-    )
-except Exception:
-    pass
 
 # Exclude all-day events — they don't represent room time slots
 events = [e for e in events if "dateTime" in e.get("start", {})]
 
 
 def room_has_accepted(event):
-    """Return True if a resource-calendar attendee has accepted, or if there are
-    no resource attendees at all (e.g. booked purely via the meeting@ email)."""
+    """Return True if the resource-calendar attendee has accepted, or if there
+    is no resource attendee entry (older-style bookings with no room invite)."""
     resource_attendees = [
         a for a in event.get("attendees", [])
         if a.get("email", "").endswith("@resource.calendar.google.com")
-        or a.get("email", "") == MEETING_EMAIL
     ]
     if not resource_attendees:
-        return True  # no resource attendee entry — treat as confirmed
+        return True
     return any(a.get("responseStatus") == "accepted" for a in resource_attendees)
 
-
-# Exclude events where the room resource hasn't accepted — these are orphaned
-# bookings where the organiser deleted the event without cancelling it, leaving
-# a stale copy on the room calendar that was never accepted or was later declined.
-# DEBUG: print raw API data for every event before filtering so we can inspect
-# ghost events. Remove once the root cause is identified.
-if is_manual:
-    print("\n=== DEBUG: all events before room_has_accepted filter ===")
-    for e in events:
-        print(json.dumps({
-            "id": e.get("id"),
-            "summary": e.get("summary"),
-            "status": e.get("status"),
-            "organizer": e.get("organizer"),
-            "created": e.get("created"),
-            "updated": e.get("updated"),
-            "start": e.get("start"),
-            "end": e.get("end"),
-            "attendees": [
-                {"email": a.get("email"), "responseStatus": a.get("responseStatus"), "self": a.get("self")}
-                for a in e.get("attendees", [])
-            ],
-        }, indent=2))
-    print("=== END DEBUG ===\n")
 
 events = [e for e in events if room_has_accepted(e)]
 

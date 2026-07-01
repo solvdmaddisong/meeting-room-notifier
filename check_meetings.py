@@ -113,7 +113,17 @@ try:
     for evt in meeting_result.get("items", []):
         if evt.get("status") == "cancelled":
             continue
-        if evt["id"] not in existing_ids:
+        if evt["id"] in existing_ids:
+            continue
+        # Only include events from the meeting@ calendar if the room resource
+        # has explicitly accepted — this filters ghost invites (old/deleted events
+        # still sitting in the meeting@ inbox with no confirmed room booking).
+        resource_accepted = any(
+            a.get("email", "").endswith("@resource.calendar.google.com")
+            and a.get("responseStatus") == "accepted"
+            for a in evt.get("attendees", [])
+        )
+        if resource_accepted:
             events.append(evt)
     events.sort(
         key=lambda e: e["start"].get("dateTime", e["start"].get("date", ""))

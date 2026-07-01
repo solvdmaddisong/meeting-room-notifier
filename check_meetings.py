@@ -101,6 +101,28 @@ events_result = cal_service.events().list(
 events = [e for e in events_result.get("items", []) if e.get("status") != "cancelled"]
 
 
+# Also check the meeting@ calendar — some people book by adding this address
+# directly (so the boardroom TV joins the call) rather than using "Add rooms"
+try:
+    meeting_result = cal_service.events().list(
+        calendarId=MEETING_EMAIL,
+        timeMin=start_of_day,
+        timeMax=end_of_day,
+        singleEvents=True,
+        orderBy="startTime",
+    ).execute()
+    existing_ids = {e["id"] for e in events}
+    for evt in meeting_result.get("items", []):
+        if evt.get("status") == "cancelled":
+            continue
+        if evt["id"] not in existing_ids:
+            events.append(evt)
+    events.sort(
+        key=lambda e: e["start"].get("dateTime", e["start"].get("date", ""))
+    )
+except Exception:
+    pass
+
 # Exclude all-day events — they don't represent room time slots
 events = [e for e in events if "dateTime" in e.get("start", {})]
 

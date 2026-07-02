@@ -261,14 +261,16 @@ for idx, (ev1, ev2) in enumerate(overlapping_pairs, 1):
     cards_html.append(card)
 
 html_body = (
-    f'<p style="font-size:15px;color:#111111;margin:0 0 20px;">'
-    f"The following meetings conflict in the meeting room on {next_day_str}:</p>"
+    '<div style="font-family:Arial,Helvetica,sans-serif;max-width:480px;">'
+    + '<p style="font-size:15px;color:#111111;margin:0 0 20px;">'
+    "Possible meeting room booking conflicts to review</p>"
     + "".join(cards_html)
     + '<p style="font-size:13px;color:#666666;margin:20px 0 0;">'
     "Please resolve these conflicts before the day starts.</p>"
+    + "</div>"
 )
 
-subject = f"Meeting room booking conflicts {next_day_str}"
+subject = f"Review: Possible meeting room booking conflicts for {next_day_str}"
 
 # Plain text for logging
 print(f"\n{subject}")

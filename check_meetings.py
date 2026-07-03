@@ -9,6 +9,8 @@ import pytz
 from google.oauth2 import service_account
 from googleapiclient.discovery import build
 
+from calendar_merge import merge_room_and_meeting_events, room_has_accepted
+
 # ---------------------------------------------------------------------------
 # Configuration (all values come from environment variables)
 # ---------------------------------------------------------------------------
@@ -102,7 +104,10 @@ events = [e for e in events_result.get("items", []) if e.get("status") != "cance
 
 
 # Also check the meeting@ calendar — some people book by adding this address
-# directly (so the boardroom TV joins the call) rather than using "Add rooms"
+# directly (so the boardroom TV joins the call) rather than using "Add rooms".
+# A booking that has BOTH the room resource and meeting@ attached is one real
+# event and must only be counted once — merge on iCalUID (stable across every
+# calendar an event is copied to), not `id` (only stable within one calendar).
 try:
     meeting_result = cal_service.events().list(
         calendarId=MEETING_EMAIL,
@@ -111,15 +116,7 @@ try:
         singleEvents=True,
         orderBy="startTime",
     ).execute()
-    existing_ids = {e["id"] for e in events}
-    for evt in meeting_result.get("items", []):
-        if evt.get("status") == "cancelled":
-            continue
-        if evt["id"] not in existing_ids:
-            events.append(evt)
-    events.sort(
-        key=lambda e: e["start"].get("dateTime", e["start"].get("date", ""))
-    )
+    events = merge_room_and_meeting_events(events, meeting_result.get("items", []))
 except Exception:
     pass
 
@@ -127,19 +124,7 @@ except Exception:
 events = [e for e in events if "dateTime" in e.get("start", {})]
 
 
-def room_has_accepted(event):
-    """Return True if the resource-calendar attendee has accepted, or if there
-    is no resource attendee entry (older-style bookings with no room invite)."""
-    resource_attendees = [
-        a for a in event.get("attendees", [])
-        if a.get("email", "").endswith("@resource.calendar.google.com")
-    ]
-    if not resource_attendees:
-        return True
-    return any(a.get("responseStatus") == "accepted" for a in resource_attendees)
-
-
-events = [e for e in events if room_has_accepted(e)]
+events = [e for e in events if room_has_accepted(e, meeting_email=MEETING_EMAIL)]
 
 if not events:
     print(f"No meeting room bookings for {next_day_str}.")
